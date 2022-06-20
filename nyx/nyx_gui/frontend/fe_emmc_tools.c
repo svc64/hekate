@@ -24,6 +24,7 @@
 #include <bdk.h>
 
 #include "gui.h"
+#include "gui_tools.h"
 #include "fe_emmc_tools.h"
 #include "fe_emummc_tools.h"
 #include "../config.h"
@@ -336,6 +337,16 @@ static int _dump_emmc_verify(emmc_tool_gui_t *gui, sdmmc_storage_t *storage, u32
 	}
 }
 
+static lv_res_t _emmc_part_dump_inprogress_action(lv_obj_t *btns, const char *txt)
+{
+	u32 btnidx = lv_btnm_get_pressed(btns);
+
+	if (btnidx == 1) {
+		return action_ums_sd(btns);
+	}
+	return mbox_action(btns, txt);
+}
+
 bool partial_sd_full_unmount = false;
 
 static int _dump_emmc_part(emmc_tool_gui_t *gui, char *sd_path, int active_part, sdmmc_storage_t *storage, emmc_part_t *part)
@@ -573,13 +584,26 @@ static int _dump_emmc_part(emmc_tool_gui_t *gui, char *sd_path, int active_part,
 				// More parts to backup that do not currently fit the sd card free space or fatal error.
 				if (currPartIdx >= maxSplitParts)
 				{
-					create_mbox_text(
-						"#96FF00 Partial Backup in progress!#\n\n"
+					char *message_text = "#96FF00 Partial Backup in progress!#\n\n"
 						"#96FF00 1.# Press OK to unmount SD Card.\n"
 						"#96FF00 2.# Remove SD Card and move files to free space.\n"
 						"#FFDD00 Don\'t move the partial.idx file!#\n"
 						"#96FF00 3.# Re-insert SD Card.\n"
-						"#96FF00 4.# Select the SAME option again to continue.", true);
+						"#96FF00 4.# Select the SAME option again to continue.";
+					lv_obj_t *dark_bg = lv_obj_create(lv_scr_act(), NULL);
+					lv_obj_set_style(dark_bg, &mbox_darken);
+					lv_obj_set_size(dark_bg, LV_HOR_RES, LV_VER_RES);
+
+					static const char *mbox_btn_map[] = { "\221OK", "\221SD UMS", "" };
+					lv_obj_t *mbox = lv_mbox_create(dark_bg, NULL);
+					lv_mbox_set_recolor_text(mbox, true);
+					lv_obj_set_width(mbox, LV_HOR_RES / 9 * 6);
+					lv_mbox_set_text(mbox, message_text);
+					
+					lv_mbox_add_btns(mbox, mbox_btn_map, _emmc_part_dump_inprogress_action);
+					
+					lv_obj_align(mbox, NULL, LV_ALIGN_CENTER, 0, 0);
+					lv_obj_set_top(mbox, true);
 
 					partial_sd_full_unmount = true;
 
